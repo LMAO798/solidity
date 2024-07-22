@@ -1412,6 +1412,235 @@ BOOST_AUTO_TEST_CASE(cli_include_paths_ambiguous_import)
 	BOOST_REQUIRE(!result.success);
 }
 
+BOOST_AUTO_TEST_CASE(cli_ethdebug_no_ethdebug_in_help)
+{
+	OptionsReaderAndMessages result = runCLI({"solc", "--help"});
+	BOOST_REQUIRE(result.stdoutContent.find("ethdebug") == std::string::npos);
+	// just in case
+	BOOST_REQUIRE(result.stderrContent.find("ethdebug") == std::string::npos);
+}
+
+BOOST_AUTO_TEST_CASE(cli_ethdebug_incompatible_outputs)
+{
+	TemporaryDirectory tempDir(TEST_CASE_NAME);
+	createFilesWithParentDirs({tempDir.path() / "input.sol"});
+	static std::vector<std::pair<std::vector<std::string>, std::string>> tests{
+		{
+			{"solc", "--ethdebug",  "--asm-json", tempDir.path().string() + "/input.sol"},
+			"Error: --ethdebug / --ethdebug-runtime output can only be selected, if --via-ir was specified.\n"
+		},
+		{
+			{"solc", "--debug-info", "ethdebug",  "--asm-json", tempDir.path().string() + "/input.sol"},
+			"Error: --debug-info ethdebug can only be used with --ir, --ir-optimized and/or --ethdebug / --ethdebug-runtime.\n"
+		},
+		{
+			{"solc", "--via-ir", "--ethdebug",  "--asm-json", tempDir.path().string() + "/input.sol"},
+			"Error: --ethdebug output can only be used with --ir, --ir-optimized and/or --ethdebug / --ethdebug-runtime.\n"
+		},
+		{
+			{"solc", "--debug-info", "ethdebug",  "--asm-json", tempDir.path().string() + "/input.sol"},
+			"Error: --debug-info ethdebug can only be used with --ir, --ir-optimized and/or --ethdebug / --ethdebug-runtime.\n"
+		},
+		{
+			{"solc", "--via-ir", "--ethdebug",  "--ir-ast-json", tempDir.path().string() + "/input.sol"},
+			"Error: --ethdebug output can only be used with --ir, --ir-optimized and/or --ethdebug / --ethdebug-runtime.\n"
+		},
+		{
+			{"solc", "--debug-info", "ethdebug",  "--ir-ast-json", tempDir.path().string() + "/input.sol"},
+			"Error: --debug-info ethdebug can only be used with --ir, --ir-optimized and/or --ethdebug / --ethdebug-runtime.\n"
+		},
+		{
+			{"solc", "--via-ir", "--ethdebug",  "--ir-optimized-ast-json", tempDir.path().string() + "/input.sol"},
+			"Error: --ethdebug output can only be used with --ir, --ir-optimized and/or --ethdebug / --ethdebug-runtime.\n"
+		},
+		{
+			{"solc", "--debug-info", "ethdebug",  "--ir-optimized-ast-json", tempDir.path().string() + "/input.sol"},
+			"Error: --debug-info ethdebug can only be used with --ir, --ir-optimized and/or --ethdebug / --ethdebug-runtime.\n"
+		},
+		{
+			{"solc", "--debug-info", "ethdebug", "--import-asm-json", tempDir.path().string() + "/input.json"},
+			"Error: Option --debug-info is not supported with --import-asm-json.\n"
+		},
+		{
+			{"solc", "--ethdebug", "--import-asm-json", tempDir.path().string() + "/input.json"},
+			"Error: Option --ethdebug is not supported with --import-asm-json.\n"
+		},
+		{
+			{"solc", "--debug-info", "ethdebug", "--import-asm-json", tempDir.path().string() + "/input.json"},
+			"Error: Option --debug-info is not supported with --import-asm-json.\n"
+		},
+		{
+			{"solc", "--via-ir", "--ethdebug",  "--asm-json", tempDir.path().string() + "/input.sol"},
+			"Error: --ethdebug output can only be used with --ir, --ir-optimized and/or --ethdebug / --ethdebug-runtime.\n"
+		},
+		{
+			{"solc", "--debug-info", "ethdebug", "--asm-json", tempDir.path().string() + "/input.json"},
+			"Error: --debug-info ethdebug can only be used with --ir, --ir-optimized and/or --ethdebug / --ethdebug-runtime.\n"
+		}
+	};
+	for (auto const& test: tests)
+	{
+		OptionsReaderAndMessages result = runCLI(test.first, "");
+		BOOST_REQUIRE(!result.success);
+		BOOST_CHECK_EQUAL(result.stderrContent, test.second);
+	}
+}
+
+BOOST_AUTO_TEST_CASE(cli_ethdebug_incompatible_input_modes)
+{
+	TemporaryDirectory tempDir(TEST_CASE_NAME);
+	createFilesWithParentDirs({tempDir.path() / "input.json"});
+	static std::vector<std::pair<std::vector<std::string>, std::string>> tests{
+		{
+				{"solc", "--ethdebug", "--import-asm-json", tempDir.path().string() + "/input.json"},
+				"Error: Option --ethdebug is not supported with --import-asm-json.\n"
+		},
+		{
+				{"solc", "--ethdebug", "--via-ir", "--import-asm-json", tempDir.path().string() + "/input.json"},
+				"Error: The following options are not supported in the current input mode: --via-ir\n"
+		},
+		{
+				{"solc", "--ethdebug", "--import-asm-json", tempDir.path().string() + "/input.json"},
+				"Error: Option --ethdebug is not supported with --import-asm-json.\n"
+		},
+		{
+			{"solc", "--debug-info", "ethdebug", "--import-asm-json", tempDir.path().string() + "/input.json"},
+			"Error: Option --debug-info is not supported with --import-asm-json.\n"
+		},
+		{
+			{"solc", "--ethdebug", "--import-ast", tempDir.path().string() + "/input.json"},
+			"Error: --ethdebug / --ethdebug-runtime output can only be selected, if --via-ir was specified.\n"
+		},
+		{
+			{"solc", "--ethdebug", "--via-ir", "--import-ast", tempDir.path().string() + "/input.json"},
+			"Error: Invalid input mode for --debug-info ethdebug / --ethdebug / --ethdebug-runtime.\n"
+		},
+		{
+			{"solc", "--debug-info", "ethdebug", "--ir", "--import-ast", tempDir.path().string() + "/input.json"},
+			"Error: Invalid input mode for --debug-info ethdebug / --ethdebug / --ethdebug-runtime.\n"
+		}
+	};
+	for (auto const& test: tests)
+	{
+		OptionsReaderAndMessages result = runCLI(test.first, "");
+		BOOST_REQUIRE(!result.success);
+		BOOST_CHECK_EQUAL(result.stderrContent, test.second);
+	}
+}
+
+BOOST_AUTO_TEST_CASE(cli_ethdebug_debug_info_ethdebug)
+{
+	TemporaryDirectory tempDir(TEST_CASE_NAME);
+	createFilesWithParentDirs({tempDir.path() / "input.sol"},  "pragma solidity >=0.0; contract C { function f() public pure {} }");
+	createFilesWithParentDirs({tempDir.path() / "input.yul"}, "{}");
+	static std::vector<std::tuple<std::vector<std::string>, std::vector<std::string>, std::vector<std::string>>> tests{
+		{
+			{"solc", "--debug-info", "ethdebug", tempDir.path().string() + "/input.sol"},
+			{"Error: --debug-info ethdebug can only be used with --ir, --ir-optimized and/or --ethdebug / --ethdebug-runtime.\n"},
+			{},
+		},
+		{
+			{"solc", "--debug-info", "ethdebug", "--ir", tempDir.path().string() + "/input.sol"},
+			{},
+			{},
+		},
+		{
+			{"solc", "--debug-info", "ethdebug", "--ir-optimized", tempDir.path().string() + "/input.sol"},
+			{},
+			{},
+		},
+		{
+			{"solc", "--debug-info", "ethdebug", "--ethdebug", tempDir.path().string() + "/input.sol"},
+			{"Error: --ethdebug / --ethdebug-runtime output can only be selected, if --via-ir was specified.\n"},
+			{},
+		},
+		{
+			{"solc", "--debug-info", "ethdebug", "--ethdebug", "--via-ir", tempDir.path().string() + "/input.sol"},
+			{},
+			{},
+		},
+		{
+			{"solc", "--debug-info", "ethdebug", "--strict-assembly", tempDir.path().string() + "/input.yul"},
+			{},
+			{},
+		}
+	};
+	for (auto const& test: tests)
+	{
+		OptionsReaderAndMessages result = runCLI(std::get<0>(test), "");
+		BOOST_REQUIRE(!std::get<1>(test).empty() ? !result.success : result.success);
+		if (!std::get<1>(test).empty())
+		{
+			for (auto const& error : std::get<1>(test))
+				BOOST_REQUIRE(result.stderrContent == error);
+		}
+		// std::cout << joinHumanReadable(test.first) << std::endl;
+		// BOOST_REQUIRE(!test.second.has_value() ? result.stdoutContent.find("/// ethdebug: enabled") != std::string::npos : true);
+	}
+	// --debug-info ethdebug only works with --ir, --ir-optimized and --ethdebug (--ethdebug always need --via-ir)
+	OptionsReaderAndMessages result = runCLI({"solc", "--debug-info", "ethdebug", tempDir.path().string() + "/input.sol"}, "");
+	BOOST_REQUIRE(!result.success);
+	// debug-info selection "ethdebug" only works, if "ir" and "irOptimized" was selected.
+	result = runCLI({"solc", "--debug-info", "ethdebug", tempDir.path().string() + "/input.sol"}, "");
+	BOOST_REQUIRE(!result.success);
+	result = runCLI({"solc", "--debug-info", "ethdebug", "--ir", tempDir.path().string() + "/input.sol"}, "");
+	// if --debug-info ethdebug was set, we will output a comment on top of the ir output, indicating that ethdebug was enabled,
+	// so we use this to check whether --debug-info ethdebug was implicitly enabled.
+	BOOST_REQUIRE(result.success);
+	BOOST_REQUIRE(result.stdoutContent.find("/// ethdebug: enabled") != std::string::npos);
+	result = runCLI({"solc", "--debug-info", "ethdebug", "--ir-optimized", tempDir.path().string() + "/input.sol"}, "");
+	BOOST_REQUIRE(result.success);
+	BOOST_REQUIRE(result.stdoutContent.find("/// ethdebug: enabled") != std::string::npos);
+	// --ethdebug only works, if --via-ir was defined
+	result = runCLI({"solc", "--debug-info", "ethdebug", "--ethdebug", tempDir.path().string() + "/input.sol"}, "");
+	BOOST_REQUIRE(!result.success);
+	result = runCLI({"solc", "--debug-info", "ethdebug", "--ethdebug", "--via-ir", tempDir.path().string() + "/input.sol"}, "");
+	BOOST_REQUIRE(result.success);
+	BOOST_REQUIRE(result.stdoutContent.find("Debug Data") != std::string::npos);
+	// --debug-info ethdebug always works with --strict-assembly
+	result = runCLI({"solc", "--debug-info", "ethdebug", "--strict-assembly", tempDir.path().string() + "/input.yul"}, "");
+	BOOST_REQUIRE(result.success);
+	BOOST_REQUIRE(result.stdoutContent.find("/// ethdebug: enabled") != std::string::npos);
+	// --debug-info ethdebug is excluded from --debug-info all
+	result = runCLI({"solc", "--debug-info", "all", "--strict-assembly", tempDir.path().string() + "/input.yul"}, "");
+	BOOST_REQUIRE(result.success);
+	BOOST_REQUIRE(result.stdoutContent.find("/// ethdebug: enabled") == std::string::npos);
+}
+
+BOOST_AUTO_TEST_CASE(cli_ethdebug_ethdebug_output)
+{
+	TemporaryDirectory tempDir(TEST_CASE_NAME);
+	createFilesWithParentDirs({tempDir.path() / "input.sol"}, "pragma solidity >=0.0; contract C { function f() public pure {} }");
+	// --ethdebug only works with --via-ir
+	OptionsReaderAndMessages result = runCLI({"solc", "--ethdebug", tempDir.path().string() + "/input.sol"}, "");
+	BOOST_REQUIRE(!result.success);
+	result = runCLI({"solc", "--ethdebug", "--via-ir", tempDir.path().string() + "/input.sol"}, "");
+	BOOST_REQUIRE(result.success);
+	BOOST_REQUIRE(result.stdoutContent.find("Debug Data") != std::string::npos);
+	result = runCLI({"solc", "--ethdebug", "--via-ir", "--ir", tempDir.path().string() + "/input.sol"}, "");
+	// --ethdebug will implicitly set --debug-info ethdebug, if no --debug-info was set.
+	// right now, if --debug-info ethdebug was set, we will output a comment on top of the ir output, indicating that ethdebug was enabled,
+	// so we use this to check whether --debug-info ethdebug was implicitly enabled.
+	BOOST_REQUIRE(result.success);
+	BOOST_REQUIRE(result.stdoutContent.find("/// ethdebug: enabled") != std::string::npos);
+	// let's just do the same for --ir-optimized
+	result = runCLI({"solc", "--ethdebug", "--via-ir", "--ir-optimized", "--optimize", tempDir.path().string() + "/input.sol"}, "");
+	BOOST_REQUIRE(result.success);
+	BOOST_REQUIRE(result.stdoutContent.find("/// ethdebug: enabled") != std::string::npos);
+	// --ethdebug only works with --via-ir.
+	result = runCLI({"solc", "--debug-info", "ethdebug", "--ethdebug", tempDir.path().string() + "/input.sol"}, "");
+	BOOST_REQUIRE(!result.success);
+	result = runCLI({"solc", "--debug-info", "ethdebug", "--ethdebug", "--via-ir", tempDir.path().string() + "/input.sol"}, "");
+	BOOST_REQUIRE(result.success);
+	// --ethdebug only works, if --debug-info was not set to something else as "ethdebug".
+	result = runCLI({"solc", "--debug-info", "location", "--ethdebug", "--via-ir", tempDir.path().string() + "/input.sol"}, "");
+	BOOST_REQUIRE(!result.success);
+	result = runCLI({"solc", "--debug-info", "all", "--ethdebug", "--via-ir", tempDir.path().string() + "/input.sol"}, "");
+	BOOST_REQUIRE(!result.success);
+	result = runCLI({"solc", "--debug-info", "ethdebug", "--ethdebug", "--via-ir", tempDir.path().string() + "/input.sol"}, "");
+	BOOST_REQUIRE(result.success);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 } // namespace solidity::frontend::test
