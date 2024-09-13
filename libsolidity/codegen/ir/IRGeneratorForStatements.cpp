@@ -3073,7 +3073,7 @@ void IRGeneratorForStatements::writeToLValue(IRLValue const& _lvalue, IRVariable
 				}, _storage.offset);
 
 				appendCode() <<
-					m_utils.updateStorageValueFunction(_value.type(), _lvalue.type, offsetStatic) <<
+					m_utils.updateStorageValueFunction(_value.type(), _lvalue.type, VariableDeclaration::Location::Unspecified, offsetStatic) <<
 					"(" <<
 					_storage.slot <<
 					offsetArgument <<
@@ -3090,7 +3090,7 @@ void IRGeneratorForStatements::writeToLValue(IRLValue const& _lvalue, IRVariable
 				}, _transientStorage.offset);
 
 				appendCode() <<
-					m_utils.updateStorageValueFunction(_value.type(), _lvalue.type, offsetStatic, VariableDeclaration::Location::Transient) <<
+					m_utils.updateStorageValueFunction(_value.type(), _lvalue.type, VariableDeclaration::Location::Transient, offsetStatic) <<
 					"(" <<
 					_transientStorage.slot <<
 					offsetArgument <<
@@ -3174,7 +3174,7 @@ IRVariable IRGeneratorForStatements::readFromLValue(IRLValue const& _lvalue)
 				define(result) << _storage.slot << "\n";
 			else if (std::holds_alternative<std::string>(_storage.offset))
 				define(result) <<
-					m_utils.readFromStorageDynamic(_lvalue.type, true) <<
+					m_utils.readFromStorageDynamic(_lvalue.type, true, VariableDeclaration::Location::Unspecified) <<
 					"(" <<
 					_storage.slot <<
 					", " <<
@@ -3182,7 +3182,7 @@ IRVariable IRGeneratorForStatements::readFromLValue(IRLValue const& _lvalue)
 					")\n";
 			else
 				define(result) <<
-					m_utils.readFromStorage(_lvalue.type, std::get<unsigned>(_storage.offset), true) <<
+					m_utils.readFromStorage(_lvalue.type, std::get<unsigned>(_storage.offset), true, VariableDeclaration::Location::Unspecified) <<
 					"(" <<
 					_storage.slot <<
 					")\n";
