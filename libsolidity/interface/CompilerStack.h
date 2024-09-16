@@ -128,10 +128,48 @@ public:
 		SolidityAST,
 	};
 
-	enum class IROutputSelection {
-		None,
-		UnoptimizedOnly,
-		UnoptimizedAndOptimized,
+	struct OutputSelection
+	{
+		bool unoptimizedIR = false; ///< IR straight from the codegen
+		bool optimizedIR = false;   ///< IR that went through Yul Optimizer
+		bool bytecode = false;      ///< EVM-level outputs, especially EVM assembly and bytecode.
+									///< May or may not be optimized, depending on stack settings.
+
+		bool needIR(bool _viaIR) const
+		{
+			return
+				unoptimizedIR ||
+				optimizedIR ||
+				(bytecode && _viaIR);
+		}
+
+		bool needUnoptimizedIROnly(bool _viaIR) const
+		{
+			return !(bytecode && _viaIR) && !optimizedIR;
+		}
+
+		bool needBytecode() const
+		{
+			return bytecode;
+		}
+
+		OutputSelection operator|(OutputSelection const& _other) const
+		{
+			return {
+				unoptimizedIR || _other.unoptimizedIR,
+				optimizedIR || _other.optimizedIR,
+				bytecode || _other.bytecode,
+			};
+		}
+
+		bool operator!=(OutputSelection const& _other) const { return !(*this == _other); }
+		bool operator==(OutputSelection const& _other) const
+		{
+			return
+				unoptimizedIR == _other.unoptimizedIR &&
+				optimizedIR == _other.optimizedIR &&
+				bytecode == _other.bytecode;
+		}
 	};
 
 	/// Creates a new compiler stack.
@@ -188,26 +226,7 @@ public:
 	/// Set model checker settings.
 	void setModelCheckerSettings(ModelCheckerSettings _settings);
 
-	/// Sets the requested contract names by source.
-	/// If empty, no filtering is performed and every contract
-	/// found in the supplied sources is compiled.
-	/// Names are cleared iff @a _contractNames is missing.
-	void setRequestedContractNames(std::map<std::string, std::set<std::string>> const& _contractNames = std::map<std::string, std::set<std::string>>{})
-	{
-		m_requestedContractNames = _contractNames;
-	}
-
-	/// Enable EVM Bytecode generation. This is enabled by default.
-	void enableEvmBytecodeGeneration(bool _enable = true) { m_generateEvmBytecode = _enable; }
-
-	/// Enable generation of Yul IR code so that IR output can be safely requested for all contracts.
-	/// Note that IR may also be implicitly generated when not requested. In particular
-	/// @a setViaIR(true) requires access to the IR outputs for bytecode generation.
-	void requestIROutputs(IROutputSelection _selection = IROutputSelection::UnoptimizedAndOptimized)
-	{
-		solAssert(m_stackState < ParsedAndImported);
-		m_irOutputSelection = _selection;
-	}
+	void selectOutputs(std::map<std::string, std::map<std::string, OutputSelection>> const& _outputSelection = {});
 
 	/// @arg _metadataLiteralSources When true, store sources as literals in the contract metadata.
 	/// Must be set before parsing.
@@ -448,6 +467,8 @@ private:
 	/// @returns true if the contract is requested to be compiled.
 	bool isRequestedContract(ContractDefinition const& _contract) const;
 
+	OutputSelection selectedOutputs(ContractDefinition const& _contract) const;
+
 	/// Perform the analysis steps of legacy language mode.
 	/// @returns false on error.
 	bool analyzeLegacy(bool _noErrorsSoFar);
@@ -547,9 +568,7 @@ private:
 	langutil::EVMVersion m_evmVersion;
 	std::optional<uint8_t> m_eofVersion;
 	ModelCheckerSettings m_modelCheckerSettings;
-	std::map<std::string, std::set<std::string>> m_requestedContractNames;
-	bool m_generateEvmBytecode = true;
-	IROutputSelection m_irOutputSelection = IROutputSelection::None;
+	std::map<std::string, std::map<std::string, OutputSelection>> m_outputSelection;
 	std::map<std::string, util::h160> m_libraries;
 	ImportRemapper m_importRemapper;
 	std::map<std::string const, Source> m_sources;

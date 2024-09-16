@@ -250,6 +250,12 @@ void CompilerStack::setModelCheckerSettings(ModelCheckerSettings _settings)
 	m_modelCheckerSettings = _settings;
 }
 
+void CompilerStack::selectOutputs(std::map<std::string, std::map<std::string, OutputSelection>> const& _outputSelection)
+{
+	solAssert(m_stackState < ParsedAndImported, "Must request outputs before parsing.");
+	m_outputSelection = _outputSelection;
+}
+
 void CompilerStack::setLibraries(std::map<std::string, util::h160> const& _libraries)
 {
 	solAssert(m_stackState < ParsedAndImported, "Must set libraries before parsing.");
@@ -315,8 +321,7 @@ void CompilerStack::reset(bool _keepSettings)
 		m_evmVersion = langutil::EVMVersion();
 		m_eofVersion.reset();
 		m_modelCheckerSettings = ModelCheckerSettings{};
-		m_requestedContractNames.clear();
-		m_irOutputSelection = IROutputSelection::None;
+		m_outputSelection.clear();
 		m_revertStrings = RevertStrings::Default;
 		m_optimiserSettings = OptimiserSettings::minimal();
 		m_metadataLiteralSources = false;
@@ -690,26 +695,48 @@ bool CompilerStack::parseAndAnalyze(State _stopAfter)
 bool CompilerStack::isRequestedSource(std::string const& _sourceName) const
 {
 	return
-		m_requestedContractNames.empty() ||
-		m_requestedContractNames.count("") ||
-		m_requestedContractNames.count(_sourceName);
+		m_outputSelection.empty() ||
+		m_outputSelection.count("") ||
+		m_outputSelection.count(_sourceName);
 }
 
 bool CompilerStack::isRequestedContract(ContractDefinition const& _contract) const
 {
 	/// In case nothing was specified in outputSelection.
-	if (m_requestedContractNames.empty())
+	if (m_outputSelection.empty())
 		return true;
 
 	for (auto const& key: std::vector<std::string>{"", _contract.sourceUnitName()})
 	{
-		auto const& it = m_requestedContractNames.find(key);
-		if (it != m_requestedContractNames.end())
+		auto const& it = m_outputSelection.find(key);
+		if (it != m_outputSelection.end())
 			if (it->second.count(_contract.name()) || it->second.count(""))
 				return true;
 	}
 
 	return false;
+}
+
+CompilerStack::OutputSelection CompilerStack::selectedOutputs(ContractDefinition const& _contract) const
+{
+	static OutputSelection const defaultOutputs = OutputSelection{
+		false, // unoptimizedIR
+		false, // optimizedIR
+		true,  // bytecode
+	};
+
+	// If nothing was explicitly selected, all contracts are selected by default.
+	if (m_outputSelection.empty())
+		return defaultOutputs;
+
+	OutputSelection combinedSelection;
+	for (std::string const& sourceUnitName: {""s, _contract.sourceUnitName()})
+		if (m_outputSelection.count(sourceUnitName) != 0)
+			for (std::string const& contractName: {""s, _contract.name()})
+				if (m_outputSelection.at(sourceUnitName).count(contractName) != 0)
+					combinedSelection = combinedSelection | m_outputSelection.at(sourceUnitName).at(contractName);
+
+	return combinedSelection;
 }
 
 bool CompilerStack::compile(State _stopAfter)
@@ -730,20 +757,13 @@ bool CompilerStack::compile(State _stopAfter)
 			if (auto contract = dynamic_cast<ContractDefinition const*>(node.get()))
 				if (isRequestedContract(*contract))
 				{
+					OutputSelection outputSelection = selectedOutputs(*contract);
+
 					try
 					{
-						// NOTE: Bytecode generation via IR always uses Contract::yulIROptimized.
-						// When optimization is not enabled, that member simply contains unoptimized code.
-						bool needIROutput =
-							(m_generateEvmBytecode && m_viaIR) ||
-							m_irOutputSelection != IROutputSelection::None;
-						bool needUnoptimizedIROutputOnly =
-							!(m_generateEvmBytecode && m_viaIR) &&
-							m_irOutputSelection != IROutputSelection::UnoptimizedAndOptimized;
-
-						if (needIROutput)
-							generateIR(*contract, needUnoptimizedIROutputOnly);
-						if (m_generateEvmBytecode)
+						if (outputSelection.needIR(m_viaIR))
+							generateIR(*contract, outputSelection.needUnoptimizedIROnly(m_viaIR));
+						if (outputSelection.needBytecode())
 						{
 							if (m_viaIR)
 								generateEVMFromIR(*contract);
