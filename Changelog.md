@@ -4,7 +4,7 @@ Language Features:
 
 
 Compiler Features:
- * Code Generator: Transient storage value type state variables are now supported by the legacy pipeline.
+ * Code Generator: Transient storage value type state variables are now supported.
 
 
 Bugfixes:
