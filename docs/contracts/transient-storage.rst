@@ -75,7 +75,7 @@ Only owning contract frames may access their transient storage.
 And when they do, all the frames access the same transient store.
 
 Transient storage is part of the EVM state and is subject to the same mutability enforcements
-as persistent storage. As such, any read access to it is not ``pure`` and writting access is not ``view``.
+as persistent storage. As such, any read access to it is not ``pure`` and writing access is not ``view``.
 
 If the ``TSTORE`` opcode is called within the context of a ``STATICCALL``,
 it will result in an exception instead of performing the modification.
