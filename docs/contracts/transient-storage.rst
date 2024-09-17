@@ -1,4 +1,4 @@
-.. index:: ! transient storage
+.. index:: ! transient storage, ! transient, tstore, tload
 
 .. _transient-storage:
 
@@ -11,17 +11,32 @@ Transient storage is another data location besides memory, storage, calldata
 ``TSTORE`` and ``TLOAD`` by `EIP-1153 <https://eips.ethereum.org/EIPS/eip-1153>`_.
 This new data location behaves as a key-value store similar to storage with the main
 difference being that data in transient storage is not permanent, but is scoped to
-the current transaction only, after which it will be reset to zero. The values on
-transient storage are never deserialized from storage or serialized to storage,
+the current transaction only, after which it will be reset to zero.
+The values in transient storage are never deserialized from storage or serialized to storage,
 thus the gas cost of operating in transient storage is much cheaper,
 since it doesn't require disk access.
+EVM version ``cancun`` or newer is required for transient storage to be available.
 
-Currently, the compiler can parse ``transient`` as a data location, however it is not
-defined as a keyword of the language yet. This means that the use of ``transient``
-is backwards-compatible and does not break previous code that eventually used it as an identifier.
-Note however that such use of ``transient`` as a data location is only allowed for
-:ref:`value type <value-types>` state variable declarations. Further support for
-other types as well as code generation is intended with upcoming releases.
+Transient storage variables cannot be initialized since the value would be cleared at
+the end of the transaction, rendering the initialization ineffective.
+For the same reason, ``constant`` and ``immutables`` conflict with transient storage.
+The values cannot be conserved past the end of a transaction.
+
+Transient storage variables have completely independent address space from storage,
+so that the order of transient state variables does not affect the layout of storage
+state variables and vice-versa. They do need distinct names though because all state
+variables share the same namespace.
+It is also important to note that the values in transient storage are packed in the
+same fashion as those in persistent storage.
+See :ref:`Storage Layout <storage-inplace-encoding>` for more information.
+
+Besides that, transient variables can have visibility as well and ``public`` ones will
+have a getter function generated automatically as usual.
+
+Note that such use of ``transient`` as a data location is only allowed for
+:ref:`value type <value-types>` state variable declarations.
+Reference types, such as arrays, mappings and structs, as well as local or parameter
+variables are not supported.
 
 An expected canonical use case for transient storage is cheaper reentrancy locks,
 which can be readily implemented with the opcodes as showcased next.
@@ -54,6 +69,39 @@ which can be readily implemented with the opcodes as showcased next.
             sentGifts[msg.sender] = true;
         }
     }
+
+Transient storage is private to the contract that owns it, in the same way as persistent storage.
+Only owning contract frames may access their transient storage.
+And when they do, all the frames access the same transient store.
+
+Transient storage is part of the EVM state and is subject to the same mutability enforcements
+as persistent storage. As such, any read access to it is not ``pure`` and writting access is not ``view``.
+
+If the ``TSTORE`` opcode is called within the context of a ``STATICCALL``,
+it will result in an exception instead of performing the modification.
+``TLOAD`` is allowed within the context of a ``STATICCALL``.
+
+When transient storage is used in the context of ``DELEGATECALL`` or ``CALLCODE``,
+then the owning contract of the transient storage is the contract that issued ``DELEGATECALL``
+or ``CALLCODE`` instruction (the caller) as with persistent storage.
+When transient storage is used in the context of ``CALL`` or ``STATICCALL``,
+then the owning contract of the transient storage is the contract that is the target
+of the ``CALL``or ``STATICCALL`` instruction (the callee).
+
+.. note::
+    In the case of ``DELEGATECALL``, since references to transient storage variables
+    are currently not supported, it is not possible to pass those into library calls.
+    In libraries, access to transient storage is only possible using inline assembly.
+
+If a frame reverts, all writes to transient storage that took place between entry
+to the frame and the return are reverted, including those that took place in inner calls.
+The caller of an external call may bypass that mechanism using a ``try ... catch`` block.
+This mimics the behavior of persistent storage.
+
+.. note::
+    Currently, the compiler can parse ``transient`` as a data location, however it is not
+    defined as a keyword of the language yet. This means that the use of ``transient``
+    is backwards-compatible and does not break previous code that eventually used it as an identifier.
 
 *********************************************************************
 Composability of Smart Contracts and the Caveats of Transient Storage
@@ -115,3 +163,4 @@ which have been a cornerstone for complex applications on chain.
 It is recommend to generally always clear transient storage completely at the end of a call
 into your smart contract to avoid these kinds of issues and to simplify
 the analysis of the behaviour of your contract within complex transactions.
+Check the `Security Considerations section of EIP-1153 <https://eips.ethereum.org/EIPS/eip-1153#security-considerations>`_ for further details.
