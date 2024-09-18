@@ -70,8 +70,7 @@ which can be readily implemented with the opcodes as showcased next.
     }
 
 Transient storage is private to the contract that owns it, in the same way as persistent storage.
-Only owning contract frames may access their transient storage.
-And when they do, all the frames access the same transient store.
+Only owning contract frames may access their transient storage, and when they do, all the frames access the same transient store.
 
 Transient storage is part of the EVM state and is subject to the same mutability enforcements
 as persistent storage. As such, any read access to it is not ``pure`` and writing access is not ``view``.

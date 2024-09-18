@@ -181,7 +181,7 @@ Local Solidity variables are available for assignments, for example:
     :force:
 
     // SPDX-License-Identifier: GPL-3.0
-    pragma solidity >=0.8.27 <0.9.0;
+    pragma solidity >=0.8.28 <0.9.0;
 
     // This will report a warning
     contract C {
