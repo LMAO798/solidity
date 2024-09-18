@@ -248,6 +248,9 @@ containing value and reference types, types that are encoded packed, and nested 
         bytes b1;
     }
 
+Storage Layout
+--------------
+
 .. code-block:: json
 
     {
@@ -415,6 +418,9 @@ containing value and reference types, types that are encoded packed, and nested 
         }
       }
     }
+
+Transient Storage Layout
+------------------------
 
 .. code-block:: json
 
