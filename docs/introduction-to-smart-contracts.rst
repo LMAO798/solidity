@@ -422,8 +422,8 @@ transaction senders cannot abuse the system by setting a low gas price.
 Storage, Transient Storage, Memory and the Stack
 ================================================
 
-The Ethereum Virtual Machine has three areas where it can store data:
-storage, memory and the stack.
+The Ethereum Virtual Machine has different areas where it can store data with the more
+proeminent being storage, transient storage, memory and the stack.
 
 Each account has a data area called **storage**, which is persistent between function calls
 and transactions.
@@ -461,6 +461,28 @@ Of course it is possible to move stack elements to storage or memory
 in order to get deeper access to the stack,
 but it is not possible to just access arbitrary elements deeper in the stack
 without first removing the top of the stack.
+
+Calldata, Returndata and Code
+=============================
+
+There are also other data areas which are not as apparent as those discussed previously.
+However, they are routinely used during the execution of smart contract transactions.
+
+The calldata region is the data sent to a transaction as part of a smart contract transaction.
+For example, when creating a contract, calldata would be the constructor code of the new contract.
+The Solidity language has the keyword ``calldata`` which can be used to declare
+function input parameters (other than that, they can also be ``memory``).
+
+The returndata is the way a smart contract can return a value after a call.
+In general, Solidity functions use the ``return`` keyword to write values in the returndata area.
+
+The code is the region where the EVM instructions of a smart contract are stored.
+Code is the bytes read, interpreted, and executed by the EVM during smart contract execution.
+Instruction data stored in the code is persistent as part of a contract account state field.
+Immutable and constant variables are stored in the code region.
+All references to immutables are replaced with the values assigned to them.
+A similar process is performed for constants which have their expressions inlined
+in the places where they are referenced in the smart contract code.
 
 .. index:: ! instruction
 
