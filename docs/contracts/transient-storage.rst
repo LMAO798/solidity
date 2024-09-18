@@ -12,15 +12,14 @@ Transient storage is another data location besides memory, storage, calldata
 This new data location behaves as a key-value store similar to storage with the main
 difference being that data in transient storage is not permanent, but is scoped to
 the current transaction only, after which it will be reset to zero.
-The values in transient storage are never deserialized from storage or serialized to storage,
-thus the gas cost of operating in transient storage is much cheaper,
-since it doesn't require disk access.
+The values in transient storage are never permanently saved to storage,
+thus the gas cost of operating in transient storage is much cheaper.
 EVM version ``cancun`` or newer is required for transient storage to be available.
 
 Transient storage variables cannot be initialized since the value would be cleared at
-the end of the transaction, rendering the initialization ineffective.
-For the same reason, ``constant`` and ``immutables`` conflict with transient storage.
-The values cannot be conserved past the end of a transaction.
+the end of the creation transaction, rendering the initialization ineffective.
+``constant`` and ``immutables`` variables conflict with transient storage, since
+their values are either inlined or directly stored in code.
 
 Transient storage variables have completely independent address space from storage,
 so that the order of transient state variables does not affect the layout of storage
@@ -33,10 +32,10 @@ See :ref:`Storage Layout <storage-inplace-encoding>` for more information.
 Besides that, transient variables can have visibility as well and ``public`` ones will
 have a getter function generated automatically as usual.
 
-Note that such use of ``transient`` as a data location is only allowed for
+Note that, currently, such use of ``transient`` as a data location is only allowed for
 :ref:`value type <value-types>` state variable declarations.
 Reference types, such as arrays, mappings and structs, as well as local or parameter
-variables are not supported.
+variables are not yet supported.
 
 An expected canonical use case for transient storage is cheaper reentrancy locks,
 which can be readily implemented with the opcodes as showcased next.
@@ -95,13 +94,8 @@ of the ``CALL``or ``STATICCALL`` instruction (the callee).
 
 If a frame reverts, all writes to transient storage that took place between entry
 to the frame and the return are reverted, including those that took place in inner calls.
-The caller of an external call may bypass that mechanism using a ``try ... catch`` block.
-This mimics the behavior of persistent storage.
-
-.. note::
-    Currently, the compiler can parse ``transient`` as a data location, however it is not
-    defined as a keyword of the language yet. This means that the use of ``transient``
-    is backwards-compatible and does not break previous code that eventually used it as an identifier.
+The caller of an external call may employ a ``try ... catch`` block to prevent reverts
+bubbling up from the inner calls.
 
 *********************************************************************
 Composability of Smart Contracts and the Caveats of Transient Storage
@@ -140,13 +134,6 @@ If the example used memory or storage to store the multiplier, it would be fully
 It would not matter whether you split the sequence into separate transactions or grouped them in some way.
 You would always get the same result. This enables use cases such as batching calls from multiple transactions
 together to reduce gas costs. Transient storage potentially breaks such use cases since composability can no longer be taken for granted.
-
-Note however, that the lack of composability is not an inherent property of transient storage.
-It could have been preserved if the rules for resetting its content were slightly adjusted.
-Currently the clearing happens for all contracts at the same time, when the transaction ends.
-If instead it was cleared for a contract as soon as no function belonging to it remained active
-on the call stack (which could mean multiple resets per transaction), the issue would disappear.
-In the example above it would mean clearing transient storage after each of the calls.
 
 As another example, since transient storage is constructed as a relatively cheap key-value store,
 a smart contract author may be tempted to use transient storage as a replacement for in-memory mappings

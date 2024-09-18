@@ -419,8 +419,8 @@ transaction senders cannot abuse the system by setting a low gas price.
 
 .. _locations:
 
-Storage, Memory and the Stack
-=============================
+Storage, Transient Storage, Memory and the Stack
+================================================
 
 The Ethereum Virtual Machine has three areas where it can store data:
 storage, memory and the stack.
@@ -440,7 +440,7 @@ The values stored in this data location persist only across function calls origi
 When the transaction ends, the transient storage is reset and the values stored there become unavailable to calls in subsequent transactions.
 Albeit that, the cost of reading and writing to transient storage is significantly lower than for storage.
 
-The second data area is called **memory**, of which a contract obtains
+The third data area is called **memory**, of which a contract obtains
 a freshly cleared instance for each message call. Memory is linear and can be
 addressed at byte level, but reads are limited to a width of 256 bits, while writes
 can be either 8 bits or 256 bits wide. Memory is expanded by a word (256-bit), when

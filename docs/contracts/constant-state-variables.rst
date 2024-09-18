@@ -6,13 +6,14 @@
 Constant and Immutable State Variables
 **************************************
 
-State variables located in storage can be declared as ``constant`` or ``immutable``,
-while, on the other hand, transient storage state variables cannot.
+State variables can be declared as ``constant`` or ``immutable``.
 In both cases, the variables cannot be modified after the contract has been constructed.
 For ``constant`` variables, the value has to be fixed at compile-time, while
 for ``immutable``, it can still be assigned at construction time.
 
 It is also possible to define ``constant`` variables at the file level.
+
+If the state variable is ``transient``, then it cannot be declared as ``constant`` or ``immutable``.
 
 The compiler does not reserve a storage slot for these variables, and every occurrence is
 replaced by the respective value.

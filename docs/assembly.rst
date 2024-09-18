@@ -183,6 +183,7 @@ Local Solidity variables are available for assignments, for example:
     // SPDX-License-Identifier: GPL-3.0
     pragma solidity >=0.8.27 <0.9.0;
 
+    // This will report a warning
     contract C {
         bool transient a;
         uint b;
